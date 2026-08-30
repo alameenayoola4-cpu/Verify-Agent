@@ -50,8 +50,8 @@ We use **10 challenging AI-generated code cases** (located in `/data/cases/`) co
 
 ### 1. Clean Setup
 ```bash
-git clone https://github.com/AyoolaAdedeji/verifyagent.git
-cd verifyagent
+git clone https://github.com/alameenayoola4-cpu/Verify-Agent.git
+cd Verify-Agent
 pip install -r requirements.txt
 cp .env.example .env
 # Edit .env and add your GEMINI_API_KEY
