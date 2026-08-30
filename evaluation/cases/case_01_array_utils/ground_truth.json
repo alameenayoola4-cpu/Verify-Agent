@@ -1,0 +1,21 @@
+{
+  "case_id": "case_01_array_utils",
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "function": "sliding_window_max",
+      "description": "Off-by-one error: range(len(arr) - window_size) should be range(len(arr) - window_size + 1), causing the last window to be missed",
+      "severity": "high",
+      "category": "off_by_one",
+      "line_hint": "range(len(arr) - window_size)"
+    },
+    {
+      "bug_id": "BUG-002",
+      "function": "find_duplicates",
+      "description": "Adds item to duplicates every time it's seen after the first occurrence, instead of only on the first duplicate. find_duplicates([1,1,1,1]) returns [1,1,1] instead of [1]",
+      "severity": "medium",
+      "category": "logic_error",
+      "line_hint": "duplicates.append(item)"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "case_03_password_validator",
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "function": "validate_password",
+      "description": "Only checks for space character (' ') but not other whitespace like tab, newline, carriage return. A password with 'Ab1!\\tAb1!' would pass validation despite containing a tab.",
+      "severity": "high",
+      "category": "missing_validation",
+      "line_hint": "if ' ' in password"
+    }
+  ]
+}

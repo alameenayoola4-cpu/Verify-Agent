@@ -1,0 +1,13 @@
+{
+  "case_id": "case_09_permissions",
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "function": "check_access",
+      "description": "When user_id is None and owner_id is None, the equality check (user_id == owner_id) evaluates to True, granting unauthenticated users full owner access to resources with no designated owner. This is a privilege escalation vulnerability.",
+      "severity": "critical",
+      "category": "security_flaw",
+      "line_hint": "if user_id == owner_id"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "case_id": "case_10_data_transformer",
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "function": "transform_records",
+      "description": "The 'compute' transformation uses eval() which is a security vulnerability. It also silently skips records where the expression fails (e.g., None values) without setting the computed field, leaving the record in an inconsistent state.",
+      "severity": "critical",
+      "category": "security_flaw",
+      "line_hint": "record[field] = eval(expression"
+    },
+    {
+      "bug_id": "BUG-002",
+      "function": "transform_records",
+      "description": "The 'filter' transformation silently drops records where the field value is None and a comparison is attempted (TypeError is caught and record is excluded). Records with None should be kept, not silently removed.",
+      "severity": "high",
+      "category": "logic_error",
+      "line_hint": "except TypeError:"
+    },
+    {
+      "bug_id": "BUG-003",
+      "function": "aggregate_records",
+      "description": "Does not filter out None values before aggregation. sum(), min(), max() with None in the list raise TypeError. The except clause returns None for the entire aggregation instead of computing on non-None values.",
+      "severity": "high",
+      "category": "missing_validation",
+      "line_hint": "values = [r.get(field) for r in group_records]"
+    }
+  ]
+}

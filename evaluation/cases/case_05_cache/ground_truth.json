@@ -1,0 +1,21 @@
+{
+  "case_id": "case_05_cache",
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "function": "get",
+      "description": "Does not check TTL expiration when reading entries. Expired entries are returned as valid instead of returning None and being deleted.",
+      "severity": "critical",
+      "category": "logic_error",
+      "line_hint": "value, expiry = self._cache[key]"
+    },
+    {
+      "bug_id": "BUG-002",
+      "function": "size",
+      "description": "Counts all entries including expired ones. Should only count entries whose expiry time is in the future.",
+      "severity": "medium",
+      "category": "logic_error",
+      "line_hint": "return len(self._cache)"
+    }
+  ]
+}

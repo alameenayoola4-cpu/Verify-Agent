@@ -1,0 +1,13 @@
+{
+  "case_id": "case_02_rate_limiter",
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "function": "allow_request",
+      "description": "Counter is not reset to 0 when the time window expires. The window_start is updated but request_count keeps accumulating, so after the first window fills up, no requests are ever allowed again.",
+      "severity": "critical",
+      "category": "state_bug",
+      "line_hint": "self.window_start = current_time"
+    }
+  ]
+}

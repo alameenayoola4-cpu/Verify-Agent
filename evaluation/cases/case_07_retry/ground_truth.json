@@ -1,0 +1,21 @@
+{
+  "case_id": "case_07_retry",
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "function": "retry_decorator",
+      "description": "The wrapper function does not use functools.wraps, so the decorated function loses its __name__ and __doc__ metadata.",
+      "severity": "low",
+      "category": "missing_edge_case",
+      "line_hint": "def wrapper(*args, **kwargs)"
+    },
+    {
+      "bug_id": "BUG-002",
+      "function": "retry_with_backoff",
+      "description": "Non-retryable exceptions (those not in retryable_exceptions tuple) are not caught by the except clause, which is correct behavior. However, if retryable_exceptions is set to an empty tuple (), the function will never retry and any exception propagates immediately — this edge case may not match user expectations if they pass an empty tuple expecting 'retry nothing'.",
+      "severity": "low",
+      "category": "missing_edge_case",
+      "line_hint": "retryable_exceptions: tuple = (Exception,)"
+    }
+  ]
+}

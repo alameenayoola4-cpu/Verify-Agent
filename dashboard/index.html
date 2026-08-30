@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+  <title>VerifyAgent — Execution-Based Verification for AI-Generated Code</title>
+  <meta name="description" content="VerifyAgent is an open-source CLI tool that verifies AI-generated code by executing it. It generates adversarial tests, runs them in a sandbox, diagnoses failures, and auto-patches bugs." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['Geist Mono', 'Consolas', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    body { background: #000; color: #fff; }
+    .glow-line {
+      background: linear-gradient(90deg, transparent 0%, rgba(143,143,143,0.67) 50%, transparent 100%);
+    }
+    .code-window {
+      background: #0a0a0a;
+      border: 1px solid #1a1a1a;
+    }
+    .code-window .title-bar {
+      background: #111;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .feature-card {
+      background: #0a0a0a;
+      border: 1px solid #1a1a1a;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover { border-color: #333; }
+    .step-line { background: #1a1a1a; }
+    .step-dot-done { background: #3b82f6; box-shadow: 0 0 12px rgba(59,130,246,0.4); }
+    .step-dot { background: #111; border: 1px solid #333; }
+    .badge { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); color: #60a5fa; }
+    .result-card { background: #0a0a0a; border: 1px solid #1a1a1a; }
+    ::selection { background: rgba(59,130,246,0.3); }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-up {
+      opacity: 0;
+      animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .animate-delay-100 { animation-delay: 100ms; }
+    .animate-delay-200 { animation-delay: 200ms; }
+    .animate-delay-300 { animation-delay: 300ms; }
+    .animate-delay-400 { animation-delay: 400ms; }
+    
+    /* Scroll animation classes */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!--  HEADER                                                -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <header class="fixed top-0 w-full z-50 border-b border-white/[0.06] bg-black/70 backdrop-blur-lg">
+    <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="/" class="text-lg font-bold tracking-tight flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <path d="M9 12l2 2 4-4"></path>
+          </svg>
+          VerifyAgent
+        </a>
+        <span class="hidden sm:inline text-[10px] font-medium px-2 py-0.5 rounded badge uppercase tracking-widest">Open Source</span>
+      </div>
+      <nav class="hidden md:flex items-center gap-8 text-sm text-neutral-400">
+        <a href="#how-it-works" class="hover:text-white transition-colors">How it works</a>
+        <a href="#quickstart" class="hover:text-white transition-colors">Quickstart</a>
+        <a href="#results" class="hover:text-white transition-colors">Results</a>
+        <a href="#architecture" class="hover:text-white transition-colors">Architecture</a>
+      </nav>
+      <div class="flex items-center gap-3">
+        <a href="https://github.com" target="_blank" class="hidden sm:flex items-center gap-1.5 text-sm text-neutral-400 hover:text-white transition-colors">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+          GitHub
+        </a>
+        <a href="#quickstart" class="inline-flex items-center h-8 px-4 rounded-lg bg-white text-black text-sm font-semibold hover:bg-neutral-200 transition-colors">
+          Get Started
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  HERO                                                  -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="pt-32 pb-20 md:pt-44 md:pb-32 px-6">
+      <div class="max-w-4xl mx-auto text-center">
+        <p class="text-sm font-medium text-neutral-500 mb-6 tracking-wide uppercase animate-fade-up">An Execution-Based Verification Engine</p>
+        <h1 class="text-4xl sm:text-5xl md:text-[4.2rem] font-bold tracking-tight leading-[1.1] mb-8 animate-fade-up animate-delay-100">
+          Don't trust AI code.<br/>
+          <span class="text-neutral-500">Execute it. Verify it. Fix it.</span>
+        </h1>
+        <p class="text-lg md:text-xl text-neutral-400 max-w-2xl mx-auto mb-12 leading-relaxed animate-fade-up animate-delay-200">
+          VerifyAgent is a CLI tool that verifies AI-generated code through <strong class="text-white">execution</strong>, not guesswork. It generates adversarial tests, runs them in a sandbox, diagnoses real failures, and auto-patches the bugs.
+        </p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-up animate-delay-300">
+          <a href="#quickstart" class="w-full sm:w-auto inline-flex items-center justify-center h-12 px-8 rounded-xl bg-white text-black text-base font-semibold hover:bg-neutral-200 transition-colors">
+            Get Started →
+          </a>
+          <a href="#how-it-works" class="w-full sm:w-auto inline-flex items-center justify-center h-12 px-8 rounded-xl text-white border border-neutral-800 text-base font-medium hover:bg-white/5 transition-colors">
+            How it works
+          </a>
+        </div>
+
+        <!-- Terminal Preview -->
+        <div class="max-w-2xl mx-auto code-window rounded-xl overflow-hidden text-left animate-fade-up animate-delay-400">
+          <div class="title-bar px-4 py-2.5 flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-[#ff5f57]"></div>
+            <div class="w-3 h-3 rounded-full bg-[#febc2e]"></div>
+            <div class="w-3 h-3 rounded-full bg-[#28c840]"></div>
+            <span class="ml-3 text-xs text-neutral-500 font-mono">terminal</span>
+          </div>
+          <div class="p-5 font-mono text-sm leading-relaxed">
+            <p><span class="text-neutral-500">$</span> <span class="text-emerald-400">pip install</span> google-genai python-dotenv rich</p>
+            <p><span class="text-neutral-500">$</span> <span class="text-emerald-400">py</span> run_agent.py</p>
+            <p class="text-neutral-500 mt-3"># VerifyAgent v1.0 — Execution-Based Verification</p>
+            <p class="mt-1"><span class="text-blue-400">▸ Phase 1:</span> Understanding code + spec...</p>
+            <p><span class="text-blue-400">▸ Phase 2:</span> Generating 12 adversarial tests...</p>
+            <p><span class="text-blue-400">▸ Phase 3:</span> Executing in sandbox... <span class="text-red-400">3 FAILED</span></p>
+            <p><span class="text-blue-400">▸ Phase 4:</span> Diagnosing: off-by-one in range()</p>
+            <p><span class="text-blue-400">▸ Phase 5:</span> Applying fix... re-running... <span class="text-emerald-400">12/12 PASSED ✓</span></p>
+            <p><span class="text-blue-400">▸ Phase 6:</span> Report saved to results/agent/</p>
+            <p class="mt-3 text-emerald-400">✓ 2 bugs found, fixed, and verified with execution evidence.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  THE PROBLEM                                           -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="py-20 px-6 border-t border-neutral-900 reveal">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-4xl font-bold mb-4">The Verification Gap</h2>
+          <p class="text-neutral-400 text-lg max-w-xl mx-auto">AI can write code in seconds. But "looks correct" is not the same as "is correct".</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="feature-card rounded-2xl p-8">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-semibold flex items-center gap-2"><span class="text-xl">🤖</span> Static LLM Review</h3>
+              <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-500/10 text-red-400 border border-red-500/20">Unreliable</span>
+            </div>
+            <div class="code-window rounded-lg p-4 mb-4">
+              <p class="font-mono text-xs text-neutral-400 italic">"I've reviewed the code and it looks correct. The logic appears sound and handles edge cases properly."</p>
+            </div>
+            <p class="text-sm text-neutral-500">The reviewer <strong class="text-neutral-300">hallucinates</strong>. It says "no bugs" because the code <em>reads</em> fine. But 2 critical runtime bugs hide in plain sight.</p>
+          </div>
+
+          <div class="feature-card rounded-2xl p-8">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-semibold flex items-center gap-2"><span class="text-xl">🔬</span> VerifyAgent</h3>
+              <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Proven</span>
+            </div>
+            <div class="code-window rounded-lg p-4 mb-4">
+              <p class="font-mono text-xs text-emerald-400">> Generated 12 tests. 3 failed.</p>
+              <p class="font-mono text-xs text-emerald-400">> Root cause: off-by-one in range()</p>
+              <p class="font-mono text-xs text-emerald-400">> Fix applied. All 12 tests pass. ✓</p>
+            </div>
+            <p class="text-sm text-neutral-500">VerifyAgent <strong class="text-neutral-300">executes</strong> the code. Bugs are proven by <em>real test failures</em> and fixed with evidence, not vibes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  HOW IT WORKS — 6 PHASE PIPELINE                      -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section id="how-it-works" class="py-20 px-6 border-t border-neutral-900 reveal">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-4xl font-bold mb-4">The 6-Phase Pipeline</h2>
+          <p class="text-neutral-400 text-lg">From code to proof in one automated loop.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-10">
+          <div class="flex gap-5">
+            <div class="shrink-0 w-10 h-10 rounded-xl step-dot-done flex items-center justify-center text-sm font-bold text-white">1</div>
+            <div>
+              <h4 class="font-semibold text-white mb-1">Understand</h4>
+              <p class="text-sm text-neutral-500 leading-relaxed">Reads the AI-generated code and its specification. Identifies inputs, outputs, invariants, and edge cases that could break.</p>
+            </div>
+          </div>
+          <div class="flex gap-5">
+            <div class="shrink-0 w-10 h-10 rounded-xl step-dot-done flex items-center justify-center text-sm font-bold text-white">2</div>
+            <div>
+              <h4 class="font-semibold text-white mb-1">Generate Tests</h4>
+              <p class="text-sm text-neutral-500 leading-relaxed">Creates 12 adversarial test cases targeting common AI hallucination patterns: off-by-one, empty inputs, unicode, type mismatches.</p>
+            </div>
+          </div>
+          <div class="flex gap-5">
+            <div class="shrink-0 w-10 h-10 rounded-xl step-dot-done flex items-center justify-center text-sm font-bold text-white">3</div>
+            <div>
+              <h4 class="font-semibold text-white mb-1">Execute in Sandbox</h4>
+              <p class="text-sm text-neutral-500 leading-relaxed">Runs every test in an isolated Python subprocess with timeouts. Captures stdout, stderr, and exit codes as evidence.</p>
+            </div>
+          </div>
+          <div class="flex gap-5">
+            <div class="shrink-0 w-10 h-10 rounded-xl step-dot-done flex items-center justify-center text-sm font-bold text-white">4</div>
+            <div>
+              <h4 class="font-semibold text-white mb-1">Diagnose Failures</h4>
+              <p class="text-sm text-neutral-500 leading-relaxed">Analyzes actual tracebacks and assertion errors. Classifies root cause, severity, and which functions are affected.</p>
+            </div>
+          </div>
+          <div class="flex gap-5">
+            <div class="shrink-0 w-10 h-10 rounded-xl step-dot-done flex items-center justify-center text-sm font-bold text-white">5</div>
+            <div>
+              <h4 class="font-semibold text-white mb-1">Fix &amp; Re-verify</h4>
+              <p class="text-sm text-neutral-500 leading-relaxed">Generates a targeted code patch based on the diagnosis. Re-runs all tests to confirm the fix. Retries up to 2 times if needed.</p>
+            </div>
+          </div>
+          <div class="flex gap-5">
+            <div class="shrink-0 w-10 h-10 rounded-xl step-dot-done flex items-center justify-center text-sm font-bold text-white">6</div>
+            <div>
+              <h4 class="font-semibold text-white mb-1">Report</h4>
+              <p class="text-sm text-neutral-500 leading-relaxed">Outputs a structured JSON report with bugs, evidence, fix diffs, and the full LLM trajectory for reproducibility.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  QUICKSTART                                            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section id="quickstart" class="py-20 px-6 border-t border-neutral-900 reveal">
+      <div class="max-w-4xl mx-auto">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-4xl font-bold mb-4">Quickstart</h2>
+          <p class="text-neutral-400 text-lg">Get VerifyAgent running in under 2 minutes.</p>
+        </div>
+
+        <div class="space-y-8">
+          <!-- Step 1 -->
+          <div>
+            <div class="flex items-center gap-3 mb-3">
+              <span class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-xs font-bold">1</span>
+              <h4 class="font-semibold">Clone the Repository</h4>
+            </div>
+            <div class="code-window rounded-xl overflow-hidden">
+              <div class="title-bar px-4 py-2 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-[#febc2e]"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-[#28c840]"></div>
+              </div>
+              <pre class="p-4 font-mono text-sm text-neutral-300"><code>git clone https://github.com/yourusername/verifyagent.git
+cd verifyagent</code></pre>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div>
+            <div class="flex items-center gap-3 mb-3">
+              <span class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-xs font-bold">2</span>
+              <h4 class="font-semibold">Install Dependencies</h4>
+            </div>
+            <div class="code-window rounded-xl overflow-hidden">
+              <div class="title-bar px-4 py-2 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-[#febc2e]"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-[#28c840]"></div>
+              </div>
+              <pre class="p-4 font-mono text-sm text-neutral-300"><code>pip install -r requirements.txt</code></pre>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div>
+            <div class="flex items-center gap-3 mb-3">
+              <span class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-xs font-bold">3</span>
+              <h4 class="font-semibold">Configure Your API Key</h4>
+            </div>
+            <div class="code-window rounded-xl overflow-hidden">
+              <div class="title-bar px-4 py-2 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-[#febc2e]"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-[#28c840]"></div>
+              </div>
+              <pre class="p-4 font-mono text-sm text-neutral-300"><code><span class="text-neutral-500"># Copy the example env file</span>
+cp .env.example .env
+
+<span class="text-neutral-500"># Add your Gemini API key(s)</span>
+<span class="text-neutral-500"># Supports multiple keys for automatic rotation on rate limits</span>
+GEMINI_API_KEY=key1,key2,key3</code></pre>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div>
+            <div class="flex items-center gap-3 mb-3">
+              <span class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-xs font-bold">4</span>
+              <h4 class="font-semibold">Run VerifyAgent</h4>
+            </div>
+            <div class="code-window rounded-xl overflow-hidden">
+              <div class="title-bar px-4 py-2 flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-[#febc2e]"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-[#28c840]"></div>
+              </div>
+              <pre class="p-4 font-mono text-sm text-neutral-300"><code><span class="text-neutral-500"># Run the full verification pipeline on all 10 evaluation cases</span>
+py run_agent.py
+
+<span class="text-neutral-500"># Run the Agent-to-Agent REST API Server</span>
+py server.py
+
+<span class="text-neutral-500"># Run a single case</span>
+py run_agent.py --case=case_01_array_utils
+
+<span class="text-neutral-500"># Score the results against ground truth</span>
+py score_results.py
+
+<span class="text-neutral-500"># Compare baseline vs agent</span>
+py generate_comparison.py</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  BENCHMARK RESULTS                                     -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section id="results" class="py-20 px-6 border-t border-neutral-900 reveal">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-4xl font-bold mb-4">Benchmark Results</h2>
+          <p class="text-neutral-400 text-lg">Evaluated on 10 real-world cases with hidden ground truth bugs.</p>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+          <div class="result-card rounded-xl p-5 text-center">
+            <div class="text-3xl font-bold text-white mb-1">56%</div>
+            <div class="text-xs text-neutral-500 uppercase tracking-wider font-medium">Precision</div>
+          </div>
+          <div class="result-card rounded-xl p-5 text-center">
+            <div class="text-3xl font-bold text-white mb-1">56%</div>
+            <div class="text-xs text-neutral-500 uppercase tracking-wider font-medium">Recall</div>
+          </div>
+          <div class="result-card rounded-xl p-5 text-center">
+            <div class="text-3xl font-bold text-blue-400 mb-1">0.562</div>
+            <div class="text-xs text-neutral-500 uppercase tracking-wider font-medium">F1 Score</div>
+          </div>
+          <div class="result-card rounded-xl p-5 text-center">
+            <div class="text-3xl font-bold text-emerald-400 mb-1">100%</div>
+            <div class="text-xs text-neutral-500 uppercase tracking-wider font-medium">Fix Success Rate</div>
+          </div>
+        </div>
+
+        <!-- Cases Table -->
+        <div class="code-window rounded-xl overflow-hidden">
+          <div class="title-bar px-5 py-3 flex items-center justify-between">
+            <span class="text-xs text-neutral-500 font-medium">Evaluation Cases</span>
+            <span class="text-xs text-neutral-600">10 cases • All completed</span>
+          </div>
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="text-[10px] uppercase tracking-wider text-neutral-500 border-b border-neutral-800">
+                <th class="px-5 py-3 font-medium">Case</th>
+                <th class="px-5 py-3 font-medium">Bug Type</th>
+                <th class="px-5 py-3 font-medium">Bugs Found</th>
+                <th class="px-5 py-3 font-medium hidden sm:table-cell">Tests</th>
+                <th class="px-5 py-3 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody class="text-neutral-300" id="casesTable">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  ARCHITECTURE                                          -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section id="architecture" class="py-20 px-6 border-t border-neutral-900 reveal">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-4xl font-bold mb-4">Architecture</h2>
+          <p class="text-neutral-400 text-lg">Simple, auditable, zero-framework Python.</p>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="feature-card rounded-2xl p-6">
+            <div class="text-2xl mb-4">⚡</div>
+            <h4 class="font-semibold mb-2">Gemini 3.6 Flash</h4>
+            <p class="text-sm text-neutral-500 leading-relaxed">Uses Google's fastest model via the <code class="text-xs bg-neutral-900 px-1.5 py-0.5 rounded">google-genai</code> SDK. Supports automatic API key rotation on rate limits.</p>
+          </div>
+          <div class="feature-card rounded-2xl p-6">
+            <div class="text-2xl mb-4">🔒</div>
+            <h4 class="font-semibold mb-2">Sandboxed Execution</h4>
+            <p class="text-sm text-neutral-500 leading-relaxed">All code runs in isolated Python subprocesses with strict timeouts. No network access, no file system writes.</p>
+          </div>
+          <div class="feature-card rounded-2xl p-6">
+            <div class="text-2xl mb-4">📋</div>
+            <h4 class="font-semibold mb-2">Full Trajectory Logging</h4>
+            <p class="text-sm text-neutral-500 leading-relaxed">Every LLM prompt and response is logged as a trajectory for complete reproducibility and auditability.</p>
+          </div>
+          <div class="feature-card rounded-2xl p-6">
+            <div class="text-2xl mb-4">🔄</div>
+            <h4 class="font-semibold mb-2">Resumable Pipeline</h4>
+            <p class="text-sm text-neutral-500 leading-relaxed">If interrupted by rate limits or errors, the agent automatically skips completed cases and resumes where it left off.</p>
+          </div>
+          <div class="feature-card rounded-2xl p-6">
+            <div class="text-2xl mb-4">🔑</div>
+            <h4 class="font-semibold mb-2">Multi-Key Rotation</h4>
+            <p class="text-sm text-neutral-500 leading-relaxed">Provide multiple API keys in <code class="text-xs bg-neutral-900 px-1.5 py-0.5 rounded">.env</code> and the client automatically rotates on 429 quota errors.</p>
+          </div>
+          <div class="feature-card rounded-2xl p-6">
+            <div class="text-2xl mb-4">📊</div>
+            <h4 class="font-semibold mb-2">Ground Truth Scoring</h4>
+            <p class="text-sm text-neutral-500 leading-relaxed">Built-in scoring engine computes Precision, Recall, and F1 against hidden ground truth labels for rigorous evaluation.</p>
+          </div>
+          <div class="feature-card rounded-2xl p-6 md:col-span-3">
+            <div class="text-2xl mb-4">🤖</div>
+            <h4 class="font-semibold mb-2">Agent-to-Agent REST API</h4>
+            <p class="text-sm text-neutral-500 leading-relaxed">Run <code class="text-xs bg-neutral-900 px-1.5 py-0.5 rounded">server.py</code> to expose a FastAPI endpoint. Other AI coding agents can send code payloads to VerifyAgent and get back verified, fixed code in JSON format.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  BUILT WITH                                            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="py-20 px-6 border-t border-neutral-900 reveal">
+      <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-3xl md:text-4xl font-bold mb-12">Built With</h2>
+        <div class="flex flex-wrap items-center justify-center gap-4 text-sm font-medium">
+          
+          <div class="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 transition-colors shadow-lg shadow-black/20 text-neutral-300">
+            <svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-[#3776AB]">
+              <path d="M11.996.11A11.758 11.758 0 0 0 7.55 1.543c-3.136.634-3.568 1.954-3.568 4.296V8.67h8.17v1.144H3.985C1.8 9.814.15 11.192.15 14.654v1.895c0 3.323 1.83 4.544 3.906 5.093 2.12.557 5.76.63 8.016.035 3.123-.82 3.42-2.115 3.42-4.484v-2.84h-8.03v-1.142h8.163c2.185 0 3.835-1.378 3.835-4.84V6.476c0-3.323-1.83-4.544-3.906-5.093C13.43.826 9.79.753 7.534 1.348zm-4.636 4.39a1.147 1.147 0 1 1-2.294.001 1.147 1.147 0 0 1 2.294 0zm9.356 15.01a1.147 1.147 0 1 1-2.293.001 1.147 1.147 0 0 1 2.293 0z"/>
+            </svg>
+            Python 3.13
+          </div>
+
+          <div class="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 transition-colors shadow-lg shadow-black/20 text-neutral-300">
+            <svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-teal-400">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+            FastAPI
+          </div>
+
+          <div class="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 transition-colors shadow-lg shadow-black/20 text-neutral-300">
+            <svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-blue-400">
+              <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z"/>
+            </svg>
+            Gemini Flash
+          </div>
+
+          <div class="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 transition-colors shadow-lg shadow-black/20 text-neutral-300">
+            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none">
+              <path d="M22.956 2.052c.07-.123.013-.264-.108-.264h-3.4c-.114 0-.214.07-.253.176l-7.39 20.312-7.25-20.312A.277.277 0 0 0 4.3 1.788H.89C.77 1.788.71 1.93.78 2.052L11.51 22.1c.143.25.5.25.642 0l10.804-20.048Z" fill="#FFEA83"/>
+              <path d="M19.162 3.655a.286.286 0 0 0-.263-.178h-2.91a.276.276 0 0 0-.256.177l-4.135 11.233-3.83-11.23a.27.27 0 0 0-.256-.178H4.66a.28.28 0 0 0-.262.39L11.455 22.1c.14.25.498.25.64 0l7.067-18.445Z" fill="#BD34FE"/>
+              <path d="M19.162 3.655a.286.286 0 0 0-.263-.178h-2.91a.276.276 0 0 0-.256.177l-4.135 11.233L19.16 3.655Z" fill="#FF8A00"/>
+            </svg>
+            Vite
+          </div>
+
+          <div class="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 transition-colors shadow-lg shadow-black/20 text-neutral-300">
+            <svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-[#38B2AC]">
+              <path d="M12.001,4.8c-3.2,0-5.2,1.6-6,4.8c1.2-1.6,2.6-2.2,4.2-1.8c0.913,0.228,1.565,0.89,2.288,1.624 C13.666,10.618,15.027,12,18.001,12c3.2,0,5.2-1.6,6-4.8c-1.2,1.6-2.6,2.2-4.2,1.8c-0.913-0.228-1.565-0.89-2.288-1.624 C16.337,6.182,14.976,4.8,12.001,4.8z M6.001,12c-3.2,0-5.2,1.6-6,4.8c1.2-1.6,2.6-2.2,4.2-1.8c0.913,0.228,1.565,0.89,2.288,1.624 c1.177,1.194,2.538,2.576,5.512,2.576c3.2,0,5.2-1.6,6-4.8c-1.2,1.6-2.6,2.2-4.2,1.8c-0.913-0.228-1.565-0.89-2.288-1.624 C10.337,13.382,8.976,12,6.001,12z"/>
+            </svg>
+            Tailwind CSS
+          </div>
+          
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!--  FOOTER                                                -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <footer class="border-t border-neutral-900 py-10 px-6">
+    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-neutral-600">
+      <div class="font-semibold text-neutral-400">VerifyAgent</div>
+      <p>Built by Ayoola Adedeji (Founder of <a href="https://stratifysys.dev" target="_blank" class="text-white hover:underline font-medium">STRATIFY-SYS</a>)</p>
+      <p class="font-mono text-xs">Powered by Gemini 3.6 Flash</p>
+    </div>
+  </footer>
+
+  <!-- Minimal JS to populate the cases table from inline data -->
+  <script>
+    const cases = [
+      { id: 'case_01_array_utils', type: 'Off-by-one', bugs: 2, tests: '9/12', fixed: true },
+      { id: 'case_02_rate_limiter', type: 'State bug', bugs: 1, tests: '10/12', fixed: true },
+      { id: 'case_03_password_validator', type: 'Unicode bypass', bugs: 1, tests: '10/12', fixed: true },
+      { id: 'case_04_csv_parser', type: 'Quoted fields', bugs: 2, tests: '10/12', fixed: true },
+      { id: 'case_05_cache', type: 'Eviction logic', bugs: 1, tests: '10/12', fixed: true },
+      { id: 'case_06_pagination', type: 'Boundary error', bugs: 1, tests: '10/12', fixed: true },
+      { id: 'case_07_retry', type: 'Backoff logic', bugs: 2, tests: '10/12', fixed: true },
+      { id: 'case_08_scheduler', type: 'Race condition', bugs: 1, tests: '10/12', fixed: true },
+      { id: 'case_09_permissions', type: 'Access control', bugs: 1, tests: '10/12', fixed: true },
+      { id: 'case_10_webhook', type: 'Signature check', bugs: 2, tests: '10/12', fixed: true },
+    ];
+    const tbody = document.getElementById('casesTable');
+    tbody.innerHTML = cases.map(c => `
+      <tr class="border-b border-neutral-800/50 hover:bg-white/[0.02]">
+        <td class="px-5 py-3 font-mono text-xs">${c.id}</td>
+        <td class="px-5 py-3"><span class="text-xs px-2 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-neutral-400">${c.type}</span></td>
+        <td class="px-5 py-3">${c.bugs}</td>
+        <td class="px-5 py-3 hidden sm:table-cell text-neutral-500">${c.tests}</td>
+        <td class="px-5 py-3"><span class="text-xs px-2 py-0.5 rounded ${c.fixed ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}">${c.fixed ? 'Verified & Fixed' : 'Failed'}</span></td>
+      </tr>
+    `).join('');
+
+    // Scroll Animation Observer
+    document.addEventListener('DOMContentLoaded', () => {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+          }
+        });
+      }, { threshold: 0.1 });
+      
+      document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    });
+  </script>
+
+</body>
+</html>

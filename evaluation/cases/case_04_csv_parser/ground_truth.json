@@ -1,0 +1,21 @@
+{
+  "case_id": "case_04_csv_parser",
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "function": "csv_to_dict",
+      "description": "Extra fields beyond header count are silently dropped. If a row has more columns than the header, those values are lost without any error or indication.",
+      "severity": "medium",
+      "category": "missing_edge_case",
+      "line_hint": "for j, header in enumerate(headers)"
+    },
+    {
+      "bug_id": "BUG-002",
+      "function": "csv_to_dict",
+      "description": "When a data row has fewer fields than headers, the missing fields are simply absent from the dict instead of being set to empty string.",
+      "severity": "medium",
+      "category": "missing_edge_case",
+      "line_hint": "if j < len(row)"
+    }
+  ]
+}

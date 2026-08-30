@@ -1,0 +1,13 @@
+{
+  "case_id": "case_08_date_utils",
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "function": "get_date_range",
+      "description": "Uses `while current < end` instead of `while current <= end`, causing the end date to be excluded from the range. The spec requires both endpoints to be inclusive.",
+      "severity": "high",
+      "category": "off_by_one",
+      "line_hint": "while current < end"
+    }
+  ]
+}

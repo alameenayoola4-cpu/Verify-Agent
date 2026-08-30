@@ -1,0 +1,13 @@
+{
+  "case_id": "case_06_pagination",
+  "bugs": [
+    {
+      "bug_id": "BUG-001",
+      "function": "paginate_with_cursor",
+      "description": "Does not validate cursor bounds. A negative cursor causes Python slice with negative start, returning unexpected items. A cursor beyond list length silently returns empty without proper indication.",
+      "severity": "medium",
+      "category": "missing_validation",
+      "line_hint": "start = cursor if cursor is not None else 0"
+    }
+  ]
+}
